@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31' 
+Description: 'My first SAM Project Demo'
+
+Parameters:
+    AwsAccountID:
+        Type: String
+        Default: AwsAccountID
+    PlatformRegion:
+        Type: String
+        Default: "us-central-1"
+    StackName:
+        Type: String
+        Default: WorkFlow
+        Description: Project Name
+    StackState: 
+        Type: String
+        Default: Prod
+        Description: Stack State ex. Prod/Test
+        AllowedValues:
+            - Prod
+            - Test
+    LambdasImageUrl:
+        Type: String
+        Default: 027534141241.dkr.ecr.eu-central-1.amazonaws.com/sam-demo-repo:latest # "{AwsAccountID}.dkr.ecr.{PlatformRegion}.amazonaws.com/{EcrRepositoryName}"
+        Description: Built Docker containers ECR url for lambda functions
+    Owner:
+        Type: String
+        Default: ilkay
+
+Resources:
+    HelloWorldFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Architectures:
+                - x86_64
+            PackageType: Image
+            FunctionName: !Sub 'sam_demo_${StackName}_${StackState}_hello_world'
+            ImageUri: !Ref LambdasImageUrl
+            ImageConfig:
+                Command: 
+                    - "/var/task/app.lambda_handler"
+            Timeout: 10
+            MemorySize: 128
+            Description: Hello world sam demo lambda
+            Environment:
+                Variables:
+                    OwnerName: !Ref Owner
+            Tags:
+                Owner: !Ref Owner
+                Stack: !Sub 'WF_${StackName}'
+            Events:
+                HelloWorld:
+                    Type: Api
+                    Properties:
+                        Path: /hello
+                        Method: get
