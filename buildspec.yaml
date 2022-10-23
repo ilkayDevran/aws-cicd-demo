@@ -1,0 +1,58 @@
+version: 0.2
+
+#DEFAULT env values
+#https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-env-vars.html
+
+phases:
+  install:
+    commands:
+      - echo "----- GIVEN ENV VALUES -----"   
+      - echo 'StackState ; '$StackState
+      - echo 'StackStateLowerCase ; '$StackStateLowerCase
+
+      - echo 'EcrDomain ; '$EcrDomain
+      - echo 'EcrRepositoryName ; '$EcrRepositoryName
+      - echo 'PlatformRegion ; '$PlatformRegion
+
+      
+      - echo 'CODEBUILD_SOURCE_VERSION ; '$CODEBUILD_SOURCE_VERSION      
+      - echo 'CODEBUILD_BUILD_NUMBER   ; '$CODEBUILD_BUILD_NUMBER      
+          
+      - echo "----- GENERATED ENV VALUES -----"             
+      - AppBucketName="${StackNameLowerCase}--${Owner}"
+      - echo 'AppBucketName ; '$AppBucketName
+
+      - Ecr_Repo="${EcrDomain}/${EcrRepositoryName}"
+      - echo 'Ecr_Repo ; '$Ecr_Repo
+
+      - WEB_IMAGE_URI="${Ecr_Repo}:${StackStateLowerCase}_build_for_lambdas_${CODEBUILD_BUILD_NUMBER}"         
+      - echo 'WEB_IMAGE_URI ; '$WEB_IMAGE_URI        
+
+      - echo "----- INSTALL -----"    
+      - ls
+      - bash -c "aws cloudformation package --template-file ./architecture/sam_template.yaml --s3-bucket ${AppBucketName} --s3-prefix codepipeline-do-not-touch/${StackStateLowerCase} --output-template-file outputSamTemplate.yaml"      
+  pre_build:  
+    commands: 
+      - echo '--Logging in to Amazon ECR...--'
+      - bash -c "aws ecr get-login-password --region $PlatformRegion | docker login --username AWS --password-stdin $EcrDomain"
+
+  build:
+    commands:
+      - echo "----- BUILD ----- FOR dp_report"    
+      - bash -c 'echo "{\"Parameters\":{\"AwsAccountID\":\"$AwsAccountID\",\"PlatformRegion\":\"$PlatformRegion\",\"StackState\":\"$StackState\",\"StackStateLowerCase\":\"$StackStateLowerCase\",\"StackName\":\"$StackName\",\"StackNameLowerCase\":\"$StackNameLowerCase\",\"LambdasImageUrl\":\"$WEB_IMAGE_URI\"}}" > templateParameter.json'      
+      - echo '--Params saved--'
+      - cat templateParameter.json
+
+      - echo '--START BUILDING LAMBDA-- dp_report Docker'      
+      - bash -c 'docker build -t $EcrRepositoryName -f ./docker/Dockerfile .' 
+      - bash -c 'docker tag $EcrRepositoryName:latest $WEB_IMAGE_URI'
+      - bash -c 'docker push $WEB_IMAGE_URI'           
+  
+  post_build:
+    commands:
+      - echo '--Dockers Pushed--'
+
+artifacts:
+  files:
+    - outputSamTemplate.yaml
+    - templateParameter.json

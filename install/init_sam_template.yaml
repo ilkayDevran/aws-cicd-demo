@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31' 
+Description: 'My first SAM Project Demo'
+
+Parameters:
+  AwsAccountID:
+    Type: String
+    Default: AwsAccountID
+  PlatformRegion:
+    Type: String
+    Default: "eu-central-1"
+  StackName:
+    Type: String
+    Default: WorkFlow
+    Description: Project Stack Name
+  StackNameLowerCase:
+    Type: String
+    Default: workflow
+    Description: Project Stack Name with LowerCase
+  StackState: 
+    Type: String
+    Default: Prod
+    Description: CICD Stack State
+    AllowedValues:
+      - Prod
+      - Test
+  StackStateLowerCase: 
+    Type: String
+    Default: prod
+    Description: CICD Stack State with LowerCase
+    AllowedValues:
+      - prod
+      - test   
+  Owner:
+    Type: String
+    Default: ilkay
+    Description: Owner Name
+
+Resources:
+  AppBucket: 
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${StackNameLowerCase}--${Owner}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls : false
+        BlockPublicPolicy : false
+        IgnorePublicAcls : false
+        RestrictPublicBuckets : false      
